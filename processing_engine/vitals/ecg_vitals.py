@@ -1,16 +1,49 @@
+import json
 import os
 from fastapi.logger import logger
 from core.consumer import KafkaConsumer
+import neurokit2 as nk
+import pandas as pd
+from core.producer import KafkaProducer
 
 
 class HealthVitals(KafkaConsumer):
     def __init__(self, brokers, group_id,topic,kafka):
         if kafka:
             super().__init__(brokers, group_id,topic)
+            kafka_broker = os.getenv('kafka_broker', 'localhost:9092')
+            self.producer = KafkaProducer(kafka_broker, topic="processed_ecg")
 
+    def handle_message(self,message, key=None):
+        """
+        Process incoming ECG data, extract metrics, and produce results to Kafka.
+        """
+        logger.debug(f"Received message: {message}")
+        try:
+            parsed_message = json.loads(message)
+            vitals = parsed_message["vitals"]  # if only one device record
+            df = pd.DataFrame(vitals)
+            sensor_id = parsed_message.get("sensor_id", "unknown")
+            raw_ecg = df["e"].dropna().to_numpy()
+            signals, info = nk.ecg_process(raw_ecg, sampling_rate=int(len(raw_ecg)/15))
 
-    def handle_message(self,message):
-        logger.info(f"Received message: {message}")
+            # Extract ECG metrics
+            ecg_clean = signals.get("ECG_Clean", [])
+            ecg_rate = info.get("ECG_Rate", 0)
+            ecg_quality = info.get("ECG_Quality", "unknown")
+
+            # Create JSON payload with required metrics
+            payload = {
+                "sensor_id": sensor_id,
+                "ecg_clean": ecg_clean.tolist()
+            }
+
+            logger.info(f"ECG Data - Rate: {ecg_rate}, Quality: {ecg_quality}")
+            self.producer.produce_message(key=sensor_id, json_message=payload)
+        except Exception as e:
+            logger.error(f"Error processing ECG data for sensor : {e}")
+            return
+
 
 if __name__ == "__main__":
     brokers = os.getenv('KAFKA_BROKERS', 'localhost:9092')
