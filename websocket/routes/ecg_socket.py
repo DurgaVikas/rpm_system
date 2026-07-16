@@ -1,10 +1,11 @@
-import json
+﻿import json
 import os
-from typing import Dict
-from fastapi import WebSocket, APIRouter
+from typing import Dict, Optional
+from fastapi import WebSocket, APIRouter, Query
 from fastapi.logger import logger
 from fastapi import WebSocketDisconnect, WebSocketException
-from core.kafka.producer import KafkaProducer
+from core.producer import KafkaProducer
+from core.auth import verify_jwt_token
 
 router = APIRouter()
 
@@ -13,10 +14,14 @@ active_connections: Dict[str, Dict] = {}
 
 
 @router.websocket("/ws/raw_ecg")
-async def raw_ecg_websocket(websocket: WebSocket):
+async def raw_ecg_websocket(websocket: WebSocket, token: str = Query(None)):
     """
     WebSocket endpoint for receiving raw ECG data from clients.
     """
+    if not token or not verify_jwt_token(token):
+        await websocket.close(code=1008)
+        return
+
     await websocket.accept()
     kafka_broker = os.getenv('kafka_broker', 'localhost:9092')
     producer = KafkaProducer(kafka_broker, topic="raw_ecg")

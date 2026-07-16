@@ -28,14 +28,16 @@ class HealthVitals(KafkaConsumer):
             signals, info = nk.ecg_process(raw_ecg, sampling_rate=int(len(raw_ecg)/15))
 
             # Extract ECG metrics
-            ecg_clean = signals.get("ECG_Clean", [])
-            ecg_rate = info.get("ECG_Rate", 0)
-            ecg_quality = info.get("ECG_Quality", "unknown")
+            ecg_clean = signals["ECG_Clean"] if "ECG_Clean" in signals else pd.Series(dtype=float)
+            ecg_rate = signals["ECG_Rate"].dropna().mean() if "ECG_Rate" in signals and not signals["ECG_Rate"].dropna().empty else 0.0
+            ecg_quality = signals["ECG_Quality"].dropna().mean() if "ECG_Quality" in signals and not signals["ECG_Quality"].dropna().empty else 0.0
 
             # Create JSON payload with required metrics
             payload = {
                 "sensor_id": sensor_id,
-                "ecg_clean": ecg_clean.tolist()
+                "ecg_clean": ecg_clean.tolist(),
+                "heart_rate": float(ecg_rate),
+                "signal_quality": float(ecg_quality)
             }
 
             logger.info(f"ECG Data - Rate: {ecg_rate}, Quality: {ecg_quality}")
