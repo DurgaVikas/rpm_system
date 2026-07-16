@@ -89,10 +89,27 @@ services:
       - kafka-net
     restart: unless-stopped
 
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: timescaledb
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: rpm_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescaledb-data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - kafka-net
+    restart: unless-stopped
+
 volumes:
   zookeeper-data:
   zookeeper-logs:
   kafka-data:
+  timescaledb-data:
 
 networks:
   kafka-net:
