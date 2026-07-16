@@ -15,8 +15,12 @@ import os
 import json
 import logging
 from confluent_kafka import Consumer, KafkaError
+from dotenv import load_dotenv
 
 from core.db.timescaledb_utils import TimescaleDBClient
+
+# Load variables from .env file
+load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO,

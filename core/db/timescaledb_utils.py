@@ -21,8 +21,12 @@ import logging
 from datetime import datetime, timezone
 from typing import List, Dict, Optional, Any
 
+from dotenv import load_dotenv
 import psycopg2
 from psycopg2 import pool, extras
+
+# Load variables from .env file
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
