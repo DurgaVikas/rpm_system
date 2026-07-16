@@ -1,94 +1,120 @@
+"""
+DB Consumer Service for RPM System.
+
+Subscribes to Kafka topics (raw_ecg, processed_ecg) and persists incoming
+messages to TimescaleDB using reusable functions from core.db.timescaledb_utils.
+
+This service runs as a standalone process alongside the WebSocket server
+and Processing Engine.
+
+Usage:
+    python -m db_consumer.main
+"""
+
 import os
 import json
 import logging
-from datetime import datetime
 from confluent_kafka import Consumer, KafkaError
-import psycopg2
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('db_consumer')
+from core.db.timescaledb_utils import TimescaleDBClient
 
-KAFKA_BROKER = os.getenv('KAFKA_BROKER', 'localhost:9092')
-DB_HOST = os.getenv('DB_HOST', 'localhost')
-DB_PORT = os.getenv('DB_PORT', '5432')
-DB_USER = os.getenv('DB_USER', 'user')
-DB_PASSWORD = os.getenv('DB_PASSWORD', 'password')
-DB_NAME = os.getenv('DB_NAME', 'rpm_db')
-GROUP_ID = os.getenv('GROUP_ID', 'db_consumer_group')
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger("db_consumer")
 
-RAW_TOPIC = 'raw_ecg'
-PROCESSED_TOPIC = 'processed_ecg'
+KAFKA_BROKER = os.getenv("KAFKA_BROKER", "localhost:9092")
+GROUP_ID = os.getenv("GROUP_ID", "db_consumer_group")
 
-def get_db_connection():
-    return psycopg2.connect(
-        host=DB_HOST,
-        port=DB_PORT,
-        user=DB_USER,
-        password=DB_PASSWORD,
-        dbname=DB_NAME
-    )
+RAW_TOPIC = "raw_ecg"
+PROCESSED_TOPIC = "processed_ecg"
+
 
 def main():
-    consumer = Consumer({
-        'bootstrap.servers': KAFKA_BROKER,
-        'group.id': GROUP_ID,
-        'auto.offset.reset': 'earliest'
-    })
+    """Main loop: consume Kafka messages and persist to TimescaleDB."""
 
+    # --- Kafka consumer setup ---
+    consumer = Consumer(
+        {
+            "bootstrap.servers": KAFKA_BROKER,
+            "group.id": GROUP_ID,
+            "auto.offset.reset": "earliest",
+        }
+    )
     consumer.subscribe([RAW_TOPIC, PROCESSED_TOPIC])
+    logger.info(f"Kafka consumer subscribed to [{RAW_TOPIC}, {PROCESSED_TOPIC}]")
 
-    logger.info(f"Connected to Kafka broker at {KAFKA_BROKER}")
-    
-    conn = get_db_connection()
-    conn.autocommit = True
-    cursor = conn.cursor()
-    logger.info("Connected to TimescaleDB")
+    # --- TimescaleDB client (from core.db) ---
+    db = TimescaleDBClient()
+    logger.info("TimescaleDB client initialized")
 
     try:
         while True:
             msg = consumer.poll(1.0)
-            if msg is None: continue
+            if msg is None:
+                continue
             if msg.error():
-                if msg.error().code() == KafkaError._PARTITION_EOF: continue
-                else:
-                    logger.error(msg.error())
-                    break
+                if msg.error().code() == KafkaError._PARTITION_EOF:
+                    continue
+                logger.error(f"Kafka error: {msg.error()}")
+                break
 
             topic = msg.topic()
             try:
                 val = msg.value()
-                if val is None: continue
-                data = json.loads(val.decode('utf-8'))
-                
-                timestamp = data.get('timestamp') or data.get('time') or datetime.utcnow().isoformat()
-                patient_id = data.get('patient_id', 'unknown')
-                device_id = data.get('device_id', 'unknown')
-                
+                if val is None:
+                    continue
+
+                data = json.loads(val.decode("utf-8"))
+
                 if topic == RAW_TOPIC:
-                    reading_value = data.get('reading_value', data.get('value', 0.0))
-                    cursor.execute(
-                        "INSERT INTO raw_ecg_readings (time, patient_id, device_id, reading_value) VALUES (%s, %s, %s, %s)",
-                        (timestamp, patient_id, device_id, float(reading_value))
-                    )
+                    _handle_raw_ecg(db, data)
                 elif topic == PROCESSED_TOPIC:
-                    heart_rate = data.get('heart_rate')
-                    arrhythmia_detected = data.get('arrhythmia_detected')
-                    anomaly_score = data.get('anomaly_score')
-                    signal_quality = data.get('signal_quality')
-                    cursor.execute(
-                        """INSERT INTO processed_ecg_metrics 
-                        (time, patient_id, device_id, heart_rate, arrhythmia_detected, anomaly_score, signal_quality) 
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)""",
-                        (timestamp, patient_id, device_id, heart_rate, arrhythmia_detected, anomaly_score, signal_quality)
-                    )
+                    _handle_processed_ecg(db, data)
+
             except Exception as e:
-                logger.error(f"Error processing message: {e}")
+                logger.error(f"Error processing message from topic '{topic}': {e}")
+
     except KeyboardInterrupt:
-        pass
+        logger.info("DB Consumer shutting down (KeyboardInterrupt)")
     finally:
         consumer.close()
-        if cursor: cursor.close()
-        if conn: conn.close()
+        db.close()
+        logger.info("DB Consumer stopped")
 
-if __name__ == '__main__':
+
+def _handle_raw_ecg(db: TimescaleDBClient, data: dict) -> None:
+    """Handle a raw_ecg Kafka message by batch-inserting vitals into TimescaleDB."""
+    sensor_id = data.get("sensor_id", "unknown")
+    vitals = data.get("vitals", [])
+
+    if not vitals:
+        logger.warning(f"Raw ECG message for sensor {sensor_id} has no vitals data")
+        return
+
+    count = db.insert_raw_ecg_batch(sensor_id, vitals)
+    logger.info(f"Persisted {count} raw ECG readings for sensor {sensor_id}")
+
+
+def _handle_processed_ecg(db: TimescaleDBClient, data: dict) -> None:
+    """Handle a processed_ecg Kafka message by inserting metrics into TimescaleDB."""
+    sensor_id = data.get("sensor_id", "unknown")
+    heart_rate = data.get("heart_rate", 0.0)
+    signal_quality = data.get("signal_quality", 0.0)
+    ecg_clean = data.get("ecg_clean", [])
+
+    db.insert_processed_ecg(
+        sensor_id=sensor_id,
+        heart_rate=heart_rate,
+        signal_quality=signal_quality,
+        ecg_clean=ecg_clean,
+    )
+    logger.info(
+        f"Persisted processed ECG for sensor {sensor_id} "
+        f"(HR={heart_rate:.1f}, Quality={signal_quality:.4f})"
+    )
+
+
+if __name__ == "__main__":
     main()
