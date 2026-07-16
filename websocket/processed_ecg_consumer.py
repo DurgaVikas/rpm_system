@@ -1,6 +1,6 @@
 import asyncio
 from fastapi.logger import logger
-from core.consumer import KafkaConsumer, get_event_loop
+from core.kafka.consumer import KafkaConsumer, get_event_loop
 from websocket.routes.ecg_socket import active_connections
 
 
