@@ -1,10 +1,10 @@
 import json
 import os
 from fastapi.logger import logger
-from core.consumer import KafkaConsumer
+from core.kafka.consumer import KafkaConsumer
 import neurokit2 as nk
 import pandas as pd
-from core.producer import KafkaProducer
+from core.kafka.producer import KafkaProducer
 
 
 class HealthVitals(KafkaConsumer):

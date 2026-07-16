@@ -2,7 +2,7 @@ import os
 import uvicorn
 import asyncio
 from fastapi import FastAPI
-from core.consumer import set_event_loop
+from core.kafka.consumer import set_event_loop
 from websocket.processed_ecg_consumer import ProcessedECGConsumer
 from websocket.routes.ecg_socket import router as ecg_routes
 from contextlib import asynccontextmanager

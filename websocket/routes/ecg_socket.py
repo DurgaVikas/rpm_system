@@ -4,7 +4,7 @@ from typing import Dict
 from fastapi import WebSocket, APIRouter
 from fastapi.logger import logger
 from fastapi import WebSocketDisconnect, WebSocketException
-from core.producer import KafkaProducer
+from core.kafka.producer import KafkaProducer
 
 router = APIRouter()
 
