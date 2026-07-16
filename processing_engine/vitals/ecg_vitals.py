@@ -20,12 +20,15 @@ class HealthVitals(KafkaConsumer):
         """
         logger.debug(f"Received message: {message}")
         try:
-            parsed_message = json.loads(message)
+            parsed_message = message
             vitals = parsed_message["vitals"]  # if only one device record
             df = pd.DataFrame(vitals)
             sensor_id = parsed_message.get("sensor_id", "unknown")
             raw_ecg = df["e"].dropna().to_numpy()
-            signals, info = nk.ecg_process(raw_ecg, sampling_rate=int(len(raw_ecg)/15))
+            sampling_rate = int(len(raw_ecg)/15) if len(raw_ecg) > 0 else 0
+            if sampling_rate <= 0:
+                sampling_rate = 250
+            signals, info = nk.ecg_process(raw_ecg, sampling_rate=sampling_rate)
 
             # Extract ECG metrics
             ecg_clean = signals["ECG_Clean"] if "ECG_Clean" in signals else pd.Series(dtype=float)
