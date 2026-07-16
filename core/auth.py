@@ -1,4 +1,4 @@
-﻿import jwt
+import jwt
 import os
 from typing import Optional
 
