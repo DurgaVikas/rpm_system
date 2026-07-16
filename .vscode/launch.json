@@ -6,6 +6,7 @@
             "type": "debugpy",
             "request": "launch",
             "module": "uvicorn",
+            "python": "${workspaceFolder}/.venv/Scripts/python",
             "args": [
                 "api.main:app",
                 "--host",
@@ -22,6 +23,7 @@
             "type": "debugpy",
             "request": "launch",
             "module": "uvicorn",
+            "python": "${workspaceFolder}/.venv/Scripts/python",
             "args": [
                 "websocket.main:app",
                 "--host",
@@ -38,6 +40,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/processing_engine/main.py",
+            "python": "${workspaceFolder}/.venv/Scripts/python",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}"
         },
@@ -46,6 +49,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/db_consumer/main.py",
+            "python": "${workspaceFolder}/.venv/Scripts/python",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}"
         }
