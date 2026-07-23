@@ -1,5 +1,5 @@
 fastapi==0.139.2
-confluent-kafka[avro]==2.14.0
+confluent-kafka[avro]==2.15.0
 fastavro==1.12.2
-PyJWT==2.8.0
+PyJWT==2.13.0
 confluent-kafka==2.15.0

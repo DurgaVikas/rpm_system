@@ -1,6 +1,6 @@
-﻿from fastapi import APIRouter
+from fastapi import APIRouter
 from pydantic import BaseModel
-from core.auth import create_access_token
+from core.auth import create_jwt_token
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -9,5 +9,5 @@ class TokenRequest(BaseModel):
 
 @router.post("/token")
 async def generate_token(request: TokenRequest):
-    token = create_access_token({"sub": request.sensor_id})
+    token = create_jwt_token({"sub": request.sensor_id})
     return {"access_token": token, "token_type": "bearer"}

@@ -2,7 +2,9 @@ import json
 import threading
 from typing import Optional
 from confluent_kafka import Consumer
-from processing_engine import logger
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Global registry for background consumer threads
 # Maps consumer_id -> {"thread": Thread, "consumer": KafkaConsumer instance}

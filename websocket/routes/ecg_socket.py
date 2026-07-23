@@ -1,10 +1,10 @@
-﻿import json
+import json
 import os
 from typing import Dict, Optional
 from fastapi import WebSocket, APIRouter, Query
 from fastapi.logger import logger
 from fastapi import WebSocketDisconnect, WebSocketException
-from core.producer import KafkaProducer
+from core.kafka.producer import KafkaProducer
 from core.auth import verify_jwt_token
 
 router = APIRouter()
@@ -42,7 +42,7 @@ async def raw_ecg_websocket(websocket: WebSocket, token: str = Query(None)):
                 "size": f"{size_in_kb}KB",
             }
             await websocket.send_json(response)
-            producer.produce_message(key=sensor_id, json_message=json_data)
+            producer.produce_message(key=sensor_id, json_message=data)
             producer.flush()
     except WebSocketDisconnect:
         logger.error("WebSocket closed")

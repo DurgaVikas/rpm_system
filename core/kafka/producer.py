@@ -1,6 +1,8 @@
 import json
 from confluent_kafka import Producer
-from fastapi.logger import logger
+import logging
+
+logger = logging.getLogger(__name__)
 
 def delivery_callback(err, msg):
     """Deliver a message to the Kafka topic."""
