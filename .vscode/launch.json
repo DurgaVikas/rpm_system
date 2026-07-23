@@ -1,0 +1,57 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "FastAPI: API Server (Port 8000)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "python": "${workspaceFolder}/.venv/Scripts/python",
+            "args": [
+                "api.main:app",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                "8000",
+                "--reload"
+            ],
+            "jinja": true,
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "FastAPI: WebSocket Server (Port 9000)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "python": "${workspaceFolder}/.venv/Scripts/python",
+            "args": [
+                "websocket.main:app",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                "9000",
+                "--reload"
+            ],
+            "jinja": true,
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Python: Processing Engine",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/processing_engine/main.py",
+            "python": "${workspaceFolder}/.venv/Scripts/python",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Python: DB Consumer",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/db_consumer/main.py",
+            "python": "${workspaceFolder}/.venv/Scripts/python",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
